@@ -1,6 +1,8 @@
-function numParser (inp) {
-  let result
-  return (result = inp.match(/^-?\d+\.?\d*/)) && [result[0], spaceparse(inp.slice(result[0].length))]
+function numParser (str) {
+  let regEx = /^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/
+  let value = str.match(regEx)
+  if (value !== null) return [value[0] * 1, str.slice(value[0].length)]
+  else return null
 }
 function spaceParser (inp) {
   let regex = /^\s+/

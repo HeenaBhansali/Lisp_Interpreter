@@ -23,6 +23,19 @@ var env = {
   '<=': (x, y) => x <= y,
   'pi': Math.PI
 }
+function value (inp) {
+  if(inp === null) return null;
+  let val
+  if (!(val = numberParser(inp))) {
+          if (!(val = stringParser(inp))) {
+            if ((val = expression(spaceParser(inp.slice(1)))) === null) return null
+    } else {
+      if (env[val[0]] === undefined) return null
+      val[0] = env[val[0]]
+    }
+  }
+  return val
+}
 function define (inp) {
   let symbol; let str = inp.slice(0); let val
   if (!(symbol = stringParser(inp))) return null
@@ -31,49 +44,75 @@ function define (inp) {
   env[symbol[0]] = val[0]
   return val[1]
 }
+function ifParser (inp) {
+  console.log(inp)
+  let test; let val; let alt
+  if (test[1].startsWith(')')) test[1] = spaceparse(test[1].slice(1))
+  if(!(val = value(test[1]))) return null
+  if(!(alt = value(val[1]))) return null
+  if(!(alt[1].startsWith(')'))) return null
+  if (test[0]) {
+    if (!val) return null
+    return [val[0], alt[1]]
+  } else {
+    if (!alt) return null
+    return alt
+  }
+}
 function operator (inp) {
+  if(inp === null) return null
   let str = inp.slice(0); let op; let args = []; let val
   if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
   str = spaceParser(str.slice(op.length))
   while (!str.startsWith(')')) {
-    if ((val = numberParser(str))) {
-      args.push(+val[0])
-      str = val[1]
-    } else if ((val = stringParser(str))) {
-      if (env[val[0]] === undefined) return null
-      args.push(Number(env[val[0]]))
-      str = val[1]
-    } else if (str[0] === '(') {
-      if (!(val = evaluater(str))) return null
-      args.push(val[0])
-      str = val[1]
+    // if ((val = value(str))) args.push(val[0])
+    // else {
+    //   if (!(val = evaluater(str))) return null
+    if (str.startsWith('(')) {
+      let exp = expression(spaceParser(str.slice(1)))
+      args.push(exp[0])
+      str = spaceParser(exp[1].slice(1))
     }
+    if ((val = value(str))){
+      args.push(+val[0])
+      str = val[1] 
+    // args.push(+val[0])
+     // str = val[1]
+    }
+    // str = val[1]
     if (!str.length) return null
   }
   return [env[op](...args), str]
 }
 function expression (inp) {
+  if(inp === null) return null
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
     if (str.startsWith('begin')) {
       if (!(result = evaluater(spaceParser(inp.slice(5))))) return null
       str = result[1]
-    } else if (str.startsWith('define')) {
-      if (!(str = define(spaceParser(inp.slice(6))))) return null
+    } else if (str.startsWith('define ')) {
+      str = define(spaceParser(inp.slice(7)))
       result = ['', str]
     } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=)/)) {
       if (!(result = operator(spaceParser(str)))) return null
+      str = result[1]
+    } else if (str.startsWith('if ')) {
+      if (!(result = ifParser(spaceParser(str.slice(3))))) return null
       str = result[1]
     } else break
   }
   return result
 }
 function evaluater (inp) {
+  if(inp === null) return null
   let str = inp.slice(0); let result; let val
   while (str.length && !str.startsWith(')')) {
     if (str.startsWith('(')) {
       if (!(result = expression(spaceParser(str.slice(1))))) return null
       str = result[1]
+      if(str.indexOf(')') === -1) return null
+      str= spaceParser(str.slice(1))
     }
     if ((val = numberParser(str))) {
       result = val; str = val[1]
@@ -82,10 +121,14 @@ function evaluater (inp) {
     if ((val = stringParser(str))) {
       result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
     }
-    if (!str[0] === ')') str = spaceParser(str.slice(1))
+    // if (!str[0] === ')') str = spaceParser(str.slice(1))
   }
-  str = spaceParser(str.slice(1))
-  return [result[0], str]
+  //str = spaceParser(str.slice(1))
+  // console.log(str)
+ // if (str.length !== 0) return null
+ // return [result[0], str]
+ if (!result) return null
+  return [result[0], spaceParser(str)]
 }
 function eval (input) {
   let result = evaluater(input)

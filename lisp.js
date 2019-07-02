@@ -24,16 +24,23 @@ var env = {
   'pi': Math.PI
 }
 function value (inp) {
+  // console.log(inp)
   if(inp === null) return null;
   let val
+  val = numberParser(inp)
+  // console.log(val)
   if (!(val = numberParser(inp))) {
+     // console.log(val)
           if (!(val = stringParser(inp))) {
+            // console.log(val)
             if ((val = expression(spaceParser(inp.slice(1)))) === null) return null
     } else {
+      // console.log(val[0])
       if (env[val[0]] === undefined) return null
       val[0] = env[val[0]]
     }
   }
+  // console.log(val)
   return val
 }
 function define (inp) {
@@ -44,18 +51,36 @@ function define (inp) {
   env[symbol[0]] = val[0]
   return val[1]
 }
+function check (inp) {
+  let str = inp.slice(0); let count = 1; let result = ''
+  while (count) {
+    if (str.startsWith('(')) count++
+    else if (str.startsWith(')')) count--
+    if (!count) break
+    result += str[0]; str = str.slice(1)
+    if (!str.length) return null
+}
+  return [result, str]
+}
 function ifParser (inp) {
-  console.log(inp)
+  // console.log(inp)
   let test; let val; let alt
-  if (test[1].startsWith(')')) test[1] = spaceparse(test[1].slice(1))
+  if (!(test = value(inp))) return null
+  // console.log(test)
+  // console.log(value)
+  if (test[1].startsWith(')')) test[1] = spaceParser(test[1].slice(1))
+  // console.log(test[1])
   if(!(val = value(test[1]))) return null
-  if(!(alt = value(val[1]))) return null
+  if (val[1].startsWith(')')) val[1] = spaceParser(val[1].slice(1))
+  alt = check(val[1])
+  // if(!(alt = value(val[1]))) return null
   if(!(alt[1].startsWith(')'))) return null
   if (test[0]) {
     if (!val) return null
     return [val[0], alt[1]]
   } else {
-    if (!alt) return null
+    //if (!alt) return null
+    if (!(alt = value(val[1]))) return null
     return alt
   }
 }
@@ -64,6 +89,7 @@ function operator (inp) {
   let str = inp.slice(0); let op; let args = []; let val
   if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
   str = spaceParser(str.slice(op.length))
+  // console.log(str)
   while (!str.startsWith(')')) {
     // if ((val = value(str))) args.push(val[0])
     // else {
@@ -91,14 +117,14 @@ function expression (inp) {
     if (str.startsWith('begin')) {
       if (!(result = evaluater(spaceParser(inp.slice(5))))) return null
       str = result[1]
-    } else if (str.startsWith('define ')) {
-      str = define(spaceParser(inp.slice(7)))
+    } else if (str.startsWith('define')) {
+      str = define(spaceParser(inp.slice(6)))
       result = ['', str]
     } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=)/)) {
       if (!(result = operator(spaceParser(str)))) return null
       str = result[1]
-    } else if (str.startsWith('if ')) {
-      if (!(result = ifParser(spaceParser(str.slice(3))))) return null
+    } else if (str.startsWith('if')) {
+      if (!(result = ifParser(spaceParser(str.slice(2))))) return null
       str = result[1]
     } else break
   }
@@ -108,6 +134,7 @@ function evaluater (inp) {
   if(inp === null) return null
   let str = inp.slice(0); let result; let val
   while (str.length && !str.startsWith(')')) {
+    // console.log(str.length)
     if (str.startsWith('(')) {
       if (!(result = expression(spaceParser(str.slice(1))))) return null
       str = result[1]
@@ -124,7 +151,7 @@ function evaluater (inp) {
     // if (!str[0] === ')') str = spaceParser(str.slice(1))
   }
   //str = spaceParser(str.slice(1))
-  // console.log(str)
+//  console.log(str)
  // if (str.length !== 0) return null
  // return [result[0], str]
  if (!result) return null

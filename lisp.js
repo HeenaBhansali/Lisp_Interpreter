@@ -24,22 +24,17 @@ var env = {
   'pi': Math.PI
 }
 function value (inp) {
-  // console.log(inp)
   if(inp === null) return null;
   let val
   val = numberParser(inp)
-  // console.log(val)
   if (!(val = numberParser(inp))) {
-      // console.log(val)
           if (!(val = stringParser(inp))) {
-            // console.log(val)
-            if ((val = expression(spaceParser(inp.slice(1)))) === null) return null
-    } 
-    // console.log(val)
+            if ((val = expression(spaceParser(inp.slice(1)), env)) === null) return null
+    } else{
       if (env[val[0]] === undefined) return null
       val[0] = env[val[0]]
   }
-  // console.log("a" + val)
+}
 return val
 }
 function defineParser (inp) {
@@ -66,7 +61,6 @@ function check (inp) {
 function ifParser (inp) {
   if (!inp.startsWith('if')) return null
   inp = spaceParser(inp.slice(2))
-  // console.log(inp)
   let test; let val; let alt
   if (!(test = value(inp))) return null
   if (test[1].startsWith(')')) test[1] = spaceParser(test[1].slice(1))
@@ -74,7 +68,6 @@ function ifParser (inp) {
   if (val[1].startsWith(')')) val[1] = spaceParser(val[1].slice(1))
   alt = check(val[1])
   if(!alt[1].startsWith(')')) return null
-  // console.log('test' + test[0])
   if (test[0]) {
     if (!val) return null
     return [val[0], alt[1]]
@@ -94,13 +87,11 @@ function ifParser (inp) {
   }
   
   function specialFormParser(inp){
-    // console.log(inp)
     let result
     input = spaceParser(inp)
     let parsers = [ifParser,beginParser,defineParser]
     for (let parser of parsers) {
       result = parser(inp)
-      // console.log(result)
       if (result) return result
     }
     return null
@@ -125,7 +116,6 @@ function operator (inp) {
   return [env[op](...args), str]
 }
 function expression (inp) {
-  // console.log(inp)
   if(inp === null) return null
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
@@ -152,7 +142,6 @@ function sExpressionParser (inp) {
   let parsers = [specialFormParser, expression]
   for (let parser of parsers) {
       result = parser(str)
-      // console.log(result)
     if (result !== null) break
   }
       if (!(result)) return null
@@ -177,6 +166,5 @@ function sExpressionParser (inp) {
 }
 function eval (input) {
   let result = sExpressionParser(input)
-  // console.log(result)
    return (result ? result[0] : 'Invalid')
 }

@@ -1,8 +1,9 @@
 function numberParser (inp) {
-  let result
-  return (result = inp.match(/^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/)) && [result[0], spaceParser(inp.slice(result[0].length))]
+  let result = inp.match(/^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/)
+  if (result === null) return null
+  return ([result[0] * 1, spaceParser(inp.slice(result[0].length))])
 }
-function stringParser (inp) {
+function identifierParser (inp) {
   let result
   return (result = inp.match(/^[a-zA-z]\w*/)) && [result[0], spaceParser(inp.slice(result[0].length))]
 }
@@ -11,7 +12,7 @@ function spaceParser (inp) {
   inp = inp.replace(regex, '')
   return inp
 }
-var env = {
+var globalEnv = {
   '+': (...list) => list.reduce((x, y) => x + y),
   '-': (...list) => list.reduce((x, y) => x - y),
   '*': (...list) => list.reduce((x, y) => x * y),
@@ -23,148 +24,128 @@ var env = {
   '<=': (x, y) => x <= y,
   'pi': Math.PI
 }
-function value (inp) {
-  if(inp === null) return null;
+function defineParser (inp, env = globalEnv) {
+  if (!inp.startsWith('define ')) return null
+  inp = spaceParser(inp.slice(7))
+  let identifier
+  let str = inp.slice(0)
   let val
-  val = numberParser(inp)
-  if (!(val = numberParser(inp))) {
-          if (!(val = stringParser(inp))) {
-            if ((val = expression(spaceParser(inp.slice(1)), env)) === null) return null
-    } else{
-      if (env[val[0]] === undefined) return null
-      val[0] = env[val[0]]
-  }
+  if (!(identifier = identifierParser(inp))) return null
+  str = identifier[1]
+  if (!(val = expression(str, env))) return null
+  env[identifier[0]] = val[0]
+  str = spaceParser(val[1])
+  if (!str.startsWith(')')) return null
+  str = spaceParser(str.slice(1))
+  return ['', str]
 }
-return val
-}
-function defineParser (inp) {
-  if (!inp.startsWith('define')) return null
-  inp = spaceParser(inp.slice(6))
-  let symbol; let str = inp.slice(0); let val
-  if (!(symbol = stringParser(inp))) return null
-  str = symbol[1]
-  if (!(val = sExpressionParser(str))) return null
-  env[symbol[0]] = val[0]
-  return ['',val[1]]
-}
-function check (inp) {
-  let str = inp.slice(0); let count = 1; let result = ''
-  while (count) {
-    if (str.startsWith('(')) count++
-    if (str.startsWith(')')) count--
-    if (!count) break
-    result += str[0]; str = str.slice(1)
-    if (!str.length) return null
-}
-  return [result, str]
-}
-function ifParser (inp) {
-  if (!inp.startsWith('if')) return null
-  inp = spaceParser(inp.slice(2))
-  let test; let val; let alt
-  if (!(test = value(inp))) return null
-  if (test[1].startsWith(')')) test[1] = spaceParser(test[1].slice(1))
-  if(!(val = value(test[1]))) return null
-  if (val[1].startsWith(')')) val[1] = spaceParser(val[1].slice(1))
-  alt = check(val[1])
-  if(!alt[1].startsWith(')')) return null
-  if (test[0]) {
-    if (!val) return null
-    return [val[0], alt[1]]
-  } else{
-    if (!(alt = value(val[1]))) return null
-    return alt
-  }
-}
-  function beginParser (inp) {
-    if (!inp.startsWith('begin')) return null
-    inp = inp.slice(5)
-    while (inp[0] !== ')') {
-      result = sExpressionParser(spaceParser(inp))
-      inp= spaceParser(result[1])
-    }
-      return [result[0], inp.slice(1)]
-  }
-  
-  function specialFormParser(inp){
-    let result
-    input = spaceParser(inp)
-    let parsers = [ifParser,beginParser,defineParser]
-    for (let parser of parsers) {
-      result = parser(inp)
-      if (result) return result
-    }
-    return null
-  }
-function operator (inp) {
-  if(inp === null) return null
-  let str = inp.slice(0); let op; let args = []; let val
-  if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
-  str = spaceParser(str.slice(op.length))
+function ifParser (inp, env = globalEnv) {
+  if (!inp.startsWith('if ')) return null
+  inp = spaceParser(inp.slice(3))
+  let str = inp
+  let args = []
   while (!str.startsWith(')')) {
-    if (str.startsWith('(')) {
-      let exp = expression(spaceParser(str.slice(1)))
-      args.push(exp[0])
-      str = spaceParser(exp[1].slice(1))
-    }
-    if ((val = value(str))){
-      args.push(+val[0])
-      str = val[1] 
-    }
-    if (!str.length) return null
+    let result = expression(str)
+    if (result === null) return null
+    args.push(result[0])
+    str = spaceParser(result[1])
   }
-  return [env[op](...args), str]
+  str = str.slice(1)
+  if (args[0]) return [args[1], str]
+  return [args[2], str]
 }
-function expression (inp) {
-  if(inp === null) return null
-  let str = inp.slice(0); let result
-  while (!str.startsWith(')')) {
-    if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=)/)) {
-      if (!(result = operator(spaceParser(str)))) return null
-      str = result[1]
-      return result
-    } if (str.startsWith('(')) {
-      result = sExpressionParser(str, env)
-      str = result[1] 
-    } else return null
+function beginParser (inp, env = globalEnv) {
+  let result
+  if (!inp.startsWith('begin ')) return null
+  inp = inp.slice(6)
+  while (inp[0] !== ')') {
+    result = sExpressionParser(spaceParser(inp), env)
+    inp = spaceParser(result[1])
   }
-  result = check(inp)
+  return [result[0], inp.slice(1)]
+}
+
+function specialFormParser (inp, env = globalEnv) {
+  let result
+  if (inp.startsWith('(')) {
+    inp = spaceParser(inp.slice(1))
+  }
+  result = defineParser(inp)
   return result
 }
-function sExpressionParser (inp) {
-  let count = 1
-  if(inp === null) return null
-   if(numberParser(inp) !== null) return numberParser(inp)
-  let str = inp.slice(0); let result; let val
-  while (str.length && !str.startsWith(')')) {
-    if (str.startsWith('(')) {
-      str = spaceParser(str.slice(1))
-  let parsers = [specialFormParser, expression]
-  for (let parser of parsers) {
-      result = parser(str)
-    if (result !== null) break
+function operator (inp, env = globalEnv) {
+  let str = inp
+  let op = str.slice(0, str.indexOf(' '))
+  if (!env[op]) return null
+  let args = []
+  str = spaceParser(str.slice(op.length))
+  while (!str.startsWith(')')) {
+    let result = expression(spaceParser(str))
+    if (result === null) return null
+    args.push(result[0])
+    str = spaceParser(result[1])
   }
-      if (!(result)) return null
-      str = result[1]
-      if(str.indexOf(')') === -1) return null
-      if(str.startsWith('(')){
-        count++;
-      continue
-    }
-    str= spaceParser(str.slice(1))
-    }
-    if ((val = numberParser(str))) {
-      result = val; str = val[1]
-      break
-    }
-    if ((val = stringParser(str))) {
-      result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
-    }
-   }
-   if (!result) return null
-  return [result[0], spaceParser(str)]
+  str = str.slice(1)
+  return [env[op](...args), str]
 }
-function eval (input) {
-  let result = sExpressionParser(input)
-   return (result ? result[0] : 'Invalid')
+function idEvalParser (str, env = globalEnv) {
+  let result = identifierParser(str)
+  if (result === null) return null
+  let id = result[0]
+  let val = env[id]
+  if (val === undefined) return null
+  return [val, result[1]]
 }
+function expression (inp, env = globalEnv) {
+  let str = inp
+  let result
+  while (!str.startsWith(')')) {
+    if (str.startsWith('(')) {
+      str = str.slice(1)
+    }
+    let parsers = [idEvalParser, operator, ifParser, numberParser, beginParser]
+    for (let parser of parsers) {
+      result = parser(spaceParser(str))
+      if (result) break
+    }
+    if (!(result)) return null
+    return result
+  }
+}
+function sExpressionParser (inp, env = globalEnv) {
+  let str = inp.trim()
+  let result
+  let val
+  while (str.startsWith('(')) {
+    result = expression(spaceParser(str), env) ||
+    specialFormParser(spaceParser(str), env)
+    if (!result) return null
+    str = spaceParser(result[1])
+  }
+  if ((val = numberParser(str))) {
+    result = val; str = val[1]
+  }
+  if ((val = identifierParser(str))) {
+    result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]
+  }
+  if (!result) return null
+  return [result[0], str]
+}
+function evaluate (input) {
+  let result = sExpressionParser(input, globalEnv)
+  return (!result || result[1] !== '' ? 'Invalid' : result[0])
+}
+console.log(evaluate('(define r 10) (+ 2 3)'))
+console.log(evaluate('r'))
+console.log(evaluate('(/ 90 0)'))
+
+console.log(evaluate('(+ 45 67 (+ 1 1))'))
+console.log(evaluate('(define defin 90)'))
+console.log(evaluate('(+ defin 40)'))
+// console.log(evaluate('(define define define)'))
+console.log(evaluate('defin'))
+console.log(evaluate('(define oops 50)'))
+console.log(evaluate('(if (< 30 45) (+ 45 56) oops)'))
+console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
+console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
+console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))

@@ -22,7 +22,8 @@ var globalEnv = {
   '=': (x, y) => x === y,
   '>=': (x, y) => x >= y,
   '<=': (x, y) => x <= y,
-  'pi': Math.PI
+  'pi': Math.PI,
+  'sqrt': (input) => Math.sqrt(input)
 }
 function defineParser (inp, env = globalEnv) {
   if (!inp.startsWith('define ')) return null
@@ -94,6 +95,7 @@ function idEvalParser (str, env = globalEnv) {
   let id = result[0]
   let val = env[id]
   if (val === undefined) return null
+  if (typeof (val) === 'function') return operator(str)
   return [val, result[1]]
 }
 function expression (inp, env = globalEnv) {
@@ -145,7 +147,9 @@ console.log(evaluate('(+ defin 40)'))
 // console.log(evaluate('(define define define)'))
 console.log(evaluate('defin'))
 console.log(evaluate('(define oops 50)'))
-console.log(evaluate('(if (< 30 45) (+ 45 56) oops)'))
+console.log(evaluate('(if (> 30 45) (+ 45 56) oops)'))
 console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
 console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
 console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
+console.log(evaluate('(sqrt (* 2 8))')
+console.log(evaluate('(sqrt 4)'))

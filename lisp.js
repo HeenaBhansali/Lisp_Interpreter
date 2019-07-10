@@ -1,3 +1,4 @@
+let readline = require('readline')
 function numberParser (inp) {
   let result = inp.match(/^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/)
   if (result === null) return null
@@ -74,6 +75,7 @@ function specialFormParser (inp, env = globalEnv) {
   result = defineParser(inp)
   return result
 }
+
 function operator (inp, env = globalEnv) {
   let str = inp
   let op = str.slice(0, str.indexOf(' '))
@@ -89,6 +91,7 @@ function operator (inp, env = globalEnv) {
   str = str.slice(1)
   return [env[op](...args), str]
 }
+
 function idEvalParser (str, env = globalEnv) {
   let result = identifierParser(str)
   if (result === null) return null
@@ -98,6 +101,7 @@ function idEvalParser (str, env = globalEnv) {
   if (typeof (val) === 'function') return operator(str)
   return [val, result[1]]
 }
+
 function expression (inp, env = globalEnv) {
   let str = inp
   let result
@@ -114,6 +118,7 @@ function expression (inp, env = globalEnv) {
     return result
   }
 }
+
 function sExpressionParser (inp, env = globalEnv) {
   let str = inp.trim()
   let result
@@ -133,10 +138,22 @@ function sExpressionParser (inp, env = globalEnv) {
   if (!result) return null
   return [result[0], str]
 }
+
 function evaluate (input) {
   let result = sExpressionParser(input, globalEnv)
   return (!result || result[1] !== '' ? 'Invalid' : result[0])
 }
+
+var rl = readline.createInterface(process.stdin, process.stdout)
+rl.setPrompt('lisp> ')
+rl.prompt()
+rl.on('line', function (line) {
+  if (line === 'quit') rl.close()
+  console.log(evaluate(line))
+  rl.prompt()
+}).on('close', function () {
+  process.exit(0)
+})
 console.log(evaluate('(define r 10) (+ 2 3)'))
 console.log(evaluate('r'))
 console.log(evaluate('(/ 90 0)'))
@@ -151,5 +168,4 @@ console.log(evaluate('(if (> 30 45) (+ 45 56) oops)'))
 console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
 console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
 console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
-console.log(evaluate('(sqrt (* 2 8))')
-console.log(evaluate('(sqrt 4)'))
+console.log(evaluate('(sqrt (* 2 8))'))

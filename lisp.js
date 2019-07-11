@@ -32,7 +32,7 @@ function findparent (val, env) {
   console.log('find---', val, env)
   // console.log('parent--', env['parent'])
   if (env !== null) {
-    console.log('2---', env[val])
+    console.log('2---', env)
     if (env[val] === undefined) return findparent(val, env.parent)
     console.log(env[val])
     return env[val]
@@ -146,7 +146,7 @@ function defineParser (inp, env = globalEnv) {
   if (!(identifier = identifierParser(inp))) return null
   str = identifier[1]
   // console.log('def--' + identifier)
-  // console.log('def--' + str)
+  // console.log('def--2---' + str)
   if (!(val = sExpressionParser(str, env))) return null
   env[identifier[0]] = val[0]
   str = spaceParser(val[1])
@@ -198,6 +198,7 @@ function specialFormParser (inp, env = globalEnv) {
       console.log(res)
       result = func([res, result[1]], res)
       console.log('res' + result)
+      if (result[1] === ')') result[1] = ''
       return result
     }
   }
@@ -246,7 +247,7 @@ function expression (inp, env) {
     if (str.startsWith('(')) {
       str = str.slice(1)
     }
-    let parsers = [idEvalParser, operator, ifParser, numberParser, beginParser]
+    let parsers = [numberParser, idEvalParser, operator, ifParser, numberParser, beginParser]
     for (let parser of parsers) {
       result = parser((spaceParser(str)), env)
       console.log(result)
@@ -296,19 +297,22 @@ function evaluate (input) {
 //   process.exit(0)
 // })
 // console.log(evaluate('(define r 10) (+ 2 3)'))
-// console.log(evaluate('r'))
-// console.log(evaluate('(/ 90 0)'))
+console.log(evaluate('(define r 10)'))
+console.log(evaluate('(* r r)'))
+console.log(evaluate('r'))
+console.log(evaluate('(/ 90 10)'))
 
-// console.log(evaluate('(+ 45 67 (+ 1 1))'))
-// console.log(evaluate('(define defin 90)'))
-// console.log(evaluate('(+ defin 40)'))
-// // console.log(evaluate('(define define define)'))
-// console.log(evaluate('defin'))
+console.log(evaluate('(+ 45 67 (+ 1 1))'))
+console.log(evaluate('(define define 90)'))
+console.log(evaluate('(+ define 40)'))
+console.log(evaluate('(define define define)'))
+console.log(evaluate('define'))
 // console.log(evaluate('(define oops 50)'))
 // console.log(evaluate('(if (> 30 45) (+ 45 56) oops)'))
 // console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
 // console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
 // console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
 // console.log(evaluate('(sqrt (* 2 8))'))
-console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
-console.log(evaluate('(circlearea 3 )'))
+// console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
+
+// console.log(evaluate('(circlearea 3 )'))

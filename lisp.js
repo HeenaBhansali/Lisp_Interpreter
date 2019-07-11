@@ -1,3 +1,4 @@
+// let readline = require('readline')
 function numberParser (inp) {
   let result = inp.match(/^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/)
   if (result === null) return null
@@ -8,6 +9,7 @@ function identifierParser (inp) {
   return (result = inp.match(/^[a-zA-z]\w*/)) && [result[0], spaceParser(inp.slice(result[0].length))]
 }
 function spaceParser (inp) {
+  console.log('1' + inp)
   let regex = /^\s+/
   inp = inp.replace(regex, '')
   return inp
@@ -24,26 +26,84 @@ var globalEnv = {
   '<=': (x, y) => x <= y,
   'pi': Math.PI,
   'list': (...list) => list,
-  'parent': null
+  'sqrt': (input) => Math.sqrt(input)
 }
 function findparent (val, env) {
+  console.log('find---', val, env)
+  // console.log('parent--', env['parent'])
   if (env !== null) {
+    console.log('2---', env[val])
     if (env[val] === undefined) return findparent(val, env.parent)
+    console.log(env[val])
     return env[val]
   }
   return undefined
 }
 function value (inp, env = globalEnv) {
+  console.log('value--' + inp)
   if (inp === null) return null
   let val
+  // console.log(numparse(inp))
   if (!(val = numberParser(inp))) {
+    // console.log('------')
     if (!(val = identifierParser(inp))) {
       if ((val = sExpressionParser(spaceParser(inp.slice(1)), env)) === null) return null
     } else {
+      // console.log('str---' + val)
       if ((val[0] = findparent([val[0]], env)) === undefined) return null
     }
   }
   return val
+}
+function quoteParser (inp) {
+  if (!inp.startsWith('quote ')) return null
+  inp = spaceParser(inp.slice(6))
+  let str = inp.slice(0)
+  let count = 1
+  let result = ''
+  while (count) {
+    if (str.startsWith('(')) count++
+    else if (str.startsWith(')')) count--
+    if (!count) break
+    result += str[0]; str = str.slice(1)
+    if (!str.length) return null
+  }
+  return [result, str]
+}
+function func (inp, env = globalEnv) {
+  console.log(inp)
+  let i = 0
+  let str = inp[1].slice(0)
+  let args = []
+  let val
+  while (!str.startsWith(')')) {
+    // console.log('str-----' + str)
+    if (str.startsWith('(')) {
+      let exp = sExpressionParser(spaceParser(str.slice(1)), env)
+      // console.log('exp--' + exp)
+      args.push(exp[0])
+      str = spaceParser(exp[1].slice(1))
+    } else if ((val = value(str, env))) {
+      // console.log('val----' + val)
+      args.push(val[0])
+      // console.log(args)
+      str = val[1]
+    } else return null
+    if (!str.length) return null
+  }
+  console.log(inp)
+  args.push(inp[0].def, inp[0].parent)
+  console.log(inp[0].def + inp[0].parent)
+  for (let index in inp[0]) {
+    inp[0][index] = args[i++]
+  // console.log(inp[0])
+  // console.log(index)
+  // console.log('func-------', inp[0][index], args[i++])
+  }
+  let result = expression(inp[0].def, inp[0])
+  console.log(result)
+  // console.log('----' + result[0] + spaceparse(str))
+  return [result[0], spaceParser(str)]
 }
 function lambda (inp, env = globalEnv) {
   if (!inp.startsWith('lambda ')) return null
@@ -65,16 +125,19 @@ function lambda (inp, env = globalEnv) {
     if (str.startsWith('(')) count++
     if (str.startsWith(')')) count--
     def += str[0]
+    // console.log(def)
     if (!count) break
     str = str.slice(1)
     if (!str.length) return null
   }
-  str = str.slice(1)
+  str = spaceParser(str.slice(1))
   obj['def'] = def
   obj['parent'] = env
+  // console.log(obj['def'] + obj['parent'] + obj)
   return [obj, spaceParser(str.slice(1))]
 }
 function defineParser (inp, env = globalEnv) {
+  // console.log('def--' + inp)
   if (!inp.startsWith('define ')) return null
   inp = spaceParser(inp.slice(7))
   let identifier
@@ -82,6 +145,8 @@ function defineParser (inp, env = globalEnv) {
   let val
   if (!(identifier = identifierParser(inp))) return null
   str = identifier[1]
+  // console.log('def--' + identifier)
+  // console.log('def--' + str)
   if (!(val = sExpressionParser(str, env))) return null
   env[identifier[0]] = val[0]
   str = spaceParser(val[1])
@@ -95,7 +160,7 @@ function ifParser (inp, env = globalEnv) {
   let str = inp
   let args = []
   while (!str.startsWith(')')) {
-    let result = expression(str, env)
+    let result = expression(str)
     if (result === null) return null
     args.push(result[0])
     str = spaceParser(result[1])
@@ -115,51 +180,35 @@ function beginParser (inp, env = globalEnv) {
   return [result[0], inp.slice(1)]
 }
 
-function func (inp, env = globalEnv) {
-  let i = 0
-  let str = inp[1].slice(0)
-  let args = []
-  let val
-  while (!str.startsWith(')')) {
-    if (str.startsWith('(')) {
-      let exp = sExpressionParser(spaceParser(str.slice(1)), env)
-      args.push(exp[0])
-      str = spaceParser(exp[1].slice(1))
-    } else if ((val = value(str, env))) {
-      args.push(val[0])
-      str = val[1]
-    } else return null
-    if (!str.length) return null
-  }
-  args.push(inp[0].def, inp[0].parent)
-  for (let index in inp[0]) {
-    inp[0][index] = args[i++]
-  }
-  let result = expression(inp[0].def, inp[0])
-  // console.log('func' + result)
-  return [result[0], '']
-}
-
 function specialFormParser (inp, env = globalEnv) {
+  console.log('spec--' + inp)
   let result
   if (inp.startsWith('(')) {
     inp = spaceParser(inp.slice(1))
   }
-  result = defineParser(inp, env) || lambda(inp, env)
+  result = defineParser(inp) || lambda(inp) || quoteParser(inp)
   if (!result) {
     if ((result = identifierParser(inp))) {
+      console.log('fhdddddddddddddgf' + result)
+      console.log(result)
+
       if (!result || findparent(result[0], env) === undefined || typeof (findparent(result[0], env)) !== 'object') return null
-      result = func([findparent(result[0], env), result[1]], env)
-      // console.log('res' + result)
+      let res = findparent(result[0], env)
+      console.log('1=------------------------------------------------------')
+      console.log(res)
+      result = func([res, result[1]], res)
+      console.log('res' + result)
       return result
     }
   }
   return result
 }
+
 function operator (inp, env) {
   let str = inp
   let op = str.slice(0, str.indexOf(' '))
   if (findparent(op, env) === undefined) return null
+  //  if (!env[op]) return null
   let args = []
   str = spaceParser(str.slice(op.length))
   while (!str.startsWith(')')) {
@@ -169,18 +218,28 @@ function operator (inp, env) {
     str = spaceParser(result[1])
   }
   str = str.slice(1)
-  return [globalEnv[op](...args), str]
+  let res = findparent(op, env)
+  console.log('op---' + res)
+  console.log(env)
+  return [res(...args), str]
 }
+
 function idEvalParser (str, env) {
-  // console.log(str)
+  console.log('id----' + str)
   let result = identifierParser(str)
   if (result === null) return null
+  console.log(result)
   let id = result[0]
-  let val = env['parent'][id] || env[id]
+  let val = findparent(id, env)
+  console.log('3val-----')
+  // if (findparent(op, env) === undefined) return null
+  console.log(val)
   if (val === undefined) return null
   return [val, result[1]]
 }
+
 function expression (inp, env) {
+  console.log('exp--' + env)
   let str = inp
   let result
   while (!str.startsWith(')')) {
@@ -189,22 +248,24 @@ function expression (inp, env) {
     }
     let parsers = [idEvalParser, operator, ifParser, numberParser, beginParser]
     for (let parser of parsers) {
-      result = parser(spaceParser(str), env)
-      // console.log(result)
+      result = parser((spaceParser(str)), env)
+      console.log(result)
       if (result) break
     }
-    // console.log(result)
     if (!(result)) return null
     return result
   }
 }
+
 function sExpressionParser (inp, env = globalEnv) {
+  console.log('sexp--' + inp)
   let str = inp.trim()
   let result
   let val
   while (str.startsWith('(')) {
     result = specialFormParser(spaceParser(str), env) ||
     expression(spaceParser(str), env)
+    console.log('sexpp---' + result)
     if (!result) return null
     str = spaceParser(result[1])
   }
@@ -212,60 +273,42 @@ function sExpressionParser (inp, env = globalEnv) {
     result = val; str = val[1]
   }
   if ((val = identifierParser(str))) {
-    result = findparent(val[0], env)
-    result = (result === undefined ? null : [result, val[1]])
-    str = val[1]
+    result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]
   }
   if (!result) return null
   return [result[0], str]
 }
+
 function evaluate (input) {
   let result = sExpressionParser(input, globalEnv)
+  console.log('---' + result)
   return (!result || result[1] !== '' ? 'Invalid' : result[0])
 }
+
+// var rl = readline.createInterface(process.stdin, process.stdout)
+// rl.setPrompt('lisp> ')
+// rl.prompt()
+// rl.on('line', function (line) {
+//   if (line === 'quit') rl.close()
+//   console.log(evaluate(line))
+//   rl.prompt()
+// }).on('close', function () {
+//   process.exit(0)
+// })
 // console.log(evaluate('(define r 10) (+ 2 3)'))
 // console.log(evaluate('r'))
 // console.log(evaluate('(/ 90 0)'))
 
-// evaluate('(+ 45 67 (+ 1 1))')
-evaluate('(define define 90)')
-
-// // console.log(evaluate('(+ define 40)'))
-// // // console.log(evaluate('(define define define)'))
-// // console.log(evaluate(' defin'))
-// // console.log(evaluate('(define oops 50)'))
-// console.log(evaluate('(if (< 30 45) (+ 45 56) 9)'))
-// console.log(evaluate('( if (= 12 12) (+ 78 2) 9)'))
-// console.log(evaluate('( + 2 3) (+ 4 5) (+ 6 7)'))
-// console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
-// console.log(evaluate('(* pi 56 72)'))
-// // console.log(evaluate('(begin (* 86 76) (* 65 45) ( quote (+78 67 (* 78 67))) ) '))
-// // console.log(evaluate('(/ 90 0)'))
-
-// // console.log(evaluate('(+ 45 67 (+ 1 1))'))
-// // console.log(evaluate('(define define 90)'))
-// // console.log(evaluate('(define define 90)'))
-// // console.log(evaluate('(+ define 40)'))
+// console.log(evaluate('(+ 45 67 (+ 1 1))'))
+// console.log(evaluate('(define defin 90)'))
+// console.log(evaluate('(+ defin 40)'))
 // // console.log(evaluate('(define define define)'))
-// // //console.log(evaluate('(* (+ r define) 78  67)'))
-// // console.log(evaluate('define'))
-
-// // console.log(evaluate('(define oops 50)'))
-// // console.log(evaluate('(plus 30 (plus 5 6))'))
-
-// // console.log(evaluate('( if (> 30 45) (+ 45 56) oops)'))
-// // console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
-
-// console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
-// console.log(evaluate('(circlearea 3 )'))
-// // console.log(evaluate('(circlearea (circlearea 3 ))'))
-// // // console.log(evaluate('(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1))))))'))
-// // // console.log(evaluate('(fact 5)'))
-// // // console.log(evaluate('(quote (define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1)))))) )'))
-// // // console.log(evaluate('(define twice (lambda (x) (* 2 x) ) )'))
-// // // console.log(evaluate('(twice (+ 78 9) )'))
-// // // console.log(evaluate('(define fib (lambda (n) (if (< n 2) 1 (+ (fib (- n 1) ) (fib (- n 2) )))))'))
-// // // console.log(evaluate('(fib 9 )'))
-// // // console.log(evaluate('(sqrt 49 )'))
-// // // console.log(evaluate('(define triplet (lambda (x y z) (+ x (* y z) ) ) )'))
-// // // console.log(evaluate('(triplet (sqrt 49) 6 7)')
+// console.log(evaluate('defin'))
+// console.log(evaluate('(define oops 50)'))
+// console.log(evaluate('(if (> 30 45) (+ 45 56) oops)'))
+// console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
+// console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
+// console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
+// console.log(evaluate('(sqrt (* 2 8))'))
+console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
+console.log(evaluate('(circlearea 3 )'))

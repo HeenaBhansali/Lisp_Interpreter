@@ -102,8 +102,8 @@ function func (inp, env = globalEnv) {
   }
   let result = expression(inp[0].def, inp[0])
   console.log(result)
-  // console.log('----' + result[0] + spaceparse(str))
-  return [result[0], spaceParser(str)]
+  console.log('----' + result[0] + spaceParser(str))
+  return [result[0], spaceParser(str.slice(1))]
 }
 function lambda (inp, env = globalEnv) {
   if (!inp.startsWith('lambda ')) return null
@@ -198,7 +198,7 @@ function specialFormParser (inp, env = globalEnv) {
       console.log(res)
       result = func([res, result[1]], res)
       console.log('res' + result)
-      if (result[1] === ')') result[1] = ''
+      // if (result[1] === ')') result[1] = ''
       return result
     }
   }
@@ -316,5 +316,6 @@ console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
 // console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
 // console.log(evaluate('(sqrt (* 2 8))'))
 console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
+console.log(evaluate('(circlearea 3)'))
 
 console.log(evaluate('(circlearea (circlearea 3) )'))

@@ -71,7 +71,7 @@ function quoteParser (inp) {
   return [result, str]
 }
 function func (inp, env = globalEnv) {
-  console.log(inp)
+  console.log('func+++' + inp)
   let i = 0
   let str = inp[1].slice(0)
   let args = []
@@ -79,10 +79,10 @@ function func (inp, env = globalEnv) {
   while (!str.startsWith(')')) {
     // console.log('str-----' + str)
     if (str.startsWith('(')) {
-      let exp = sExpressionParser(spaceParser(str.slice(1)), env)
-      // console.log('exp--' + exp)
+      let exp = sExpressionParser(spaceParser(str.slice(0)), env)
+      console.log('func--' + str)
       args.push(exp[0])
-      str = spaceParser(exp[1].slice(1))
+      str = spaceParser(exp[1])
     } else if ((val = value(str, env))) {
       // console.log('val----' + val)
       args.push(val[0])
@@ -274,7 +274,9 @@ function sExpressionParser (inp, env = globalEnv) {
     result = val; str = val[1]
   }
   if ((val = identifierParser(str))) {
-    result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]
+    result = findparent((val[0]), env)
+    // result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]
+    console.log('val---', result)
   }
   if (!result) return null
   return [result[0], str]

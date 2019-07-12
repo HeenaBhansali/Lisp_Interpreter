@@ -31,7 +31,7 @@ var globalEnv = {
 function findparent (val, env) {
   console.log('find---', val, env)
   // console.log('parent--', env['parent'])
-  if (env !== null) {
+  if (env !== null && env !== undefined) {
     console.log('2---', env)
     if (env[val] === undefined) return findparent(val, env.parent)
     console.log(env[val])
@@ -160,7 +160,7 @@ function ifParser (inp, env = globalEnv) {
   let str = inp
   let args = []
   while (!str.startsWith(')')) {
-    let result = expression(str)
+    let result = expression(str, env)
     if (result === null) return null
     args.push(result[0])
     str = spaceParser(result[1])
@@ -309,10 +309,10 @@ console.log(evaluate('(define define define)'))
 console.log(evaluate('define'))
 // console.log(evaluate('(define oops 50)'))
 // console.log(evaluate('(if (> 30 45) (+ 45 56) oops)'))
-// console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
+console.log(evaluate('(if (= 12 12) (+ 78 2) 9)'))
 // console.log(evaluate('(+ 2 3) (+ 4 5) (+ 6 7)'))
 // console.log(evaluate('(begin (define r 15) (* pi (* r r)))'))
 // console.log(evaluate('(sqrt (* 2 8))'))
-// console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
+console.log(evaluate('(define circlearea (lambda (r) (* pi r r)))'))
 
-// console.log(evaluate('(circlearea 3 )'))
+console.log(evaluate('(circlearea (circlearea 3) )'))

@@ -1,17 +1,22 @@
+let readline = require('readline')
 function numberParser (inp) {
   let result = inp.match(/^-?(0|[\d1-9]\d*)(\.\d+)?(?:[Ee][+-]?\d+)?/)
   if (result === null) return null
-  return ([result[0] * 1, spaceParser(inp.slice(result[0].length))])
+  return [result[0] * 1, spaceParser(inp.slice(result[0].length))]
 }
+
 function identifierParser (inp) {
-  let result
-  return (result = inp.match(/^[a-zA-z]\w*/)) && [result[0], spaceParser(inp.slice(result[0].length))]
+  let result = inp.match(/^[a-zA-z]\w*/)
+  if (result === null) return null
+  return [result[0], spaceParser(inp.slice(result[0].length))]
 }
+
 function spaceParser (inp) {
   let regex = /^\s+/
   inp = inp.replace(regex, '')
   return inp
 }
+
 var globalEnv = {
   '+': (list) => list.reduce((x, y) => x + y),
   '-': (list) => list.reduce((x, y) => x - y),
@@ -23,16 +28,14 @@ var globalEnv = {
   '>=': (arr) => arr[0] >= arr[1],
   '<=': (arr) => arr[0] <= arr[1],
   'pi': Math.PI,
-  'list': (...list) => list,
   'sqrt': (input) => Math.sqrt(input)
 }
+
 function findparent (val, env) {
-  if (!env[val[0]] && env['func'] && env['func']['parent'][val[0]] !== undefined) {
-    return [env['func']['parent'][val[0]], val[1]]
-  }
-  if (!env[val[0]] && !env['func']) return null
-  return [env[val[0]], val[1]]
+  if (env[val[0]] !== undefined) return [env[val[0]], val[1]]
+  return [env['funcEnv']['parent'][val[0]], val[1]]
 }
+
 function quoteParser (inp) {
   if (!inp.startsWith('quote ')) return null
   inp = spaceParser(inp.slice(6))
@@ -48,6 +51,7 @@ function quoteParser (inp) {
   }
   return [result, str]
 }
+
 function defineParser (inp, env = globalEnv) {
   if (!inp.startsWith('define ')) return null
   inp = spaceParser(inp.slice(7))
@@ -62,6 +66,7 @@ function defineParser (inp, env = globalEnv) {
   str = spaceParser(str.slice(1))
   return ['', str]
 }
+
 function ifParser (inp, env = globalEnv) {
   if (!inp.startsWith('if ')) return null
   inp = spaceParser(inp.slice(3))
@@ -75,6 +80,7 @@ function ifParser (inp, env = globalEnv) {
   else result = sExpressionParser(check(inp)[1], env)
   return [result[0], '']
 }
+
 function beginParser (inp, env = globalEnv) {
   let result
   if (!inp.startsWith('begin ')) return null
@@ -107,17 +113,15 @@ function lambdaParser (inp, env = globalEnv) {
   if (!result) return null
   obj.def = result[0]
   inp = spaceParser(result[1])
-  if (inp[0] !== ')') return null
+  if (!inp.startsWith(')')) return null
   return [obj, inp.slice(1)]
 }
 
 function evalLambda (op, inp, env) {
   let value
   let keys = Object.keys(globalEnv[op]['args'])
-  // console.log('keys---' + keys)
   let index = 0
   let result
-
   while (inp[0] !== ')') {
     value = sExpressionParser(inp, env)
     if (!value) return null
@@ -125,22 +129,11 @@ function evalLambda (op, inp, env) {
     index++
     inp = spaceParser(value[1])
   }
-  // console.log('globalEnv')
-
-  // console.log(globalEnv)
-
-  globalEnv[op]['args']['func'] = globalEnv[op]
-  // console.log(globalEnv)
-
-  // console.log('---------')
-  // // console.log(globalEnv[op]['args']['func'])
+  globalEnv[op]['args']['funcEnv'] = globalEnv[op]
   globalEnv[op]['var'].push(Object.assign({}, globalEnv[op]['args']))
-  // console.log(globalEnv[op]['var'])
-  inp = inp.slice(1)
   let indexVar = globalEnv[op]['var'].length - 1
-  // console.log('index--' + indexVar)
   result = sExpressionParser(globalEnv[op]['def'], globalEnv[op]['var'][indexVar])
-  return [result[0], inp]
+  return [result[0], inp.slice(1)]
 }
 
 function check (inp) {
@@ -164,14 +157,14 @@ function check (inp) {
   }
   return null
 }
+
 function operator (inp, env) {
-  // console.log('op---' + inp)
   let result
   let args = []
+  if (inp.startsWith('(')) inp = spaceParser(inp.slice(1))
   let op = inp.slice(0, inp.indexOf(' '))
   if (!globalEnv[op]) return null
   if (typeof globalEnv[op] === 'object') {
-    // console.log('opobj---' + inp)
     inp = spaceParser(inp.slice(op.length))
     result = evalLambda(op, inp, env)
     return result
@@ -194,6 +187,7 @@ function expression (inp, env = globalEnv) {
   if (!result) return null
   return result
 }
+
 function specialFormParser (inp, env = globalEnv) {
   let result
   if (!inp.startsWith('(')) return null
@@ -202,8 +196,8 @@ function specialFormParser (inp, env = globalEnv) {
   if (!result) return null
   return result
 }
+
 function sExpressionParser (inp, env = globalEnv) {
-  // console.log('sexp---' + inp)
   let str = inp.trim()
   let result
   result = specialFormParser(spaceParser(str), env) ||
@@ -213,39 +207,50 @@ function sExpressionParser (inp, env = globalEnv) {
   if ((result = identifierParser(str))) return findparent(result, env)
   if (!result) return null
 }
+
 function evaluate (inp) {
   let result = sExpressionParser(inp, globalEnv)
   return (!result || result[1] !== '' ? 'Invalid' : result[0])
 }
 
-// console.log(evaluate('(* pi 56 72)'))
-// console.log(evaluate('(begin (* 86 76) (* 65 45) (define twice (lambda (x) (* 2 x) ) ))'))
-// console.log(evaluate('(twice 5)'))
-// console.log(evaluate('(/ 90 0)'))
+var rl = readline.createInterface(process.stdin, process.stdout)
+rl.setPrompt('lisp> ')
+rl.prompt()
+rl.on('line', function (line) {
+  if (line === 'quit') rl.close()
+  console.log(evaluate(line))
+  rl.prompt()
+}).on('close', function () {
+  process.exit(0)
+})
 
-// console.log(evaluate('(+ 45 67 (+ 1 1))'))
-// console.log(evaluate('(define define 90)'))
-// console.log(evaluate('(define define 90)'))
-// console.log(evaluate('(+ define 40)'))
-// console.log(evaluate('define'))
-// console.log(evaluate('(define oops 50)'))
-// console.log(evaluate('( if (> 30 45) (+ 45 56) oops)'))
-// console.log(evaluate('(if (= 12 12) (+ 78 2) 90)'))
-
-// console.log(evaluate('(define circle_area ( lambda (r) (* pi r r)))'))
-// console.log(evaluate('(circle_area 3 )'))
+console.log(evaluate('(* pi 56 72)'))
+console.log(evaluate('(begin (* 86 76) (* 65 45) (define twice (lambda (x) (* 2 x) ) ))'))
+console.log(evaluate('(twice 5)'))
+console.log(evaluate('(/ 90 0)'))
+console.log(evaluate('(+ 45 67 (+ 1 1))'))
+console.log(evaluate('(define define 90)'))
+console.log(evaluate('(define define 40)'))
+console.log(evaluate('(+ define 40)'))
+console.log(evaluate('define'))
+console.log(evaluate('(define oops 50)'))
+console.log(evaluate('( if (> 30 45) (+ 45 56) oops)'))
+console.log(evaluate('(if (= 12 12) (+ 78 2) 90)'))
+console.log(evaluate('(define circle_area ( lambda (r) (* pi r r)))'))
+console.log(evaluate('(circle_area 3 )'))
 console.log(evaluate('(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1))))))'))
 console.log(evaluate('(fact 3)'))
-
-// console.log(evaluate('(define twice (lambda (x) (* 2 x) ) )'))
-// console.log(evaluate('(twice (+ 78 9) )'))
-// console.log(evaluate('(define fib (lambda (n) (if (< n 2) 1 (+ (fib (- n 1) ) (fib (- n 2) )))))'))
-// console.log(evaluate('(fib 5)'))
-// console.log(evaluate('(sqrt 49 )'))
-// console.log(evaluate('(define triplet (lambda (x y z) (+ x (* y z) ) ) )'))
-// console.log(evaluate('(triplet (sqrt 49) 6 7)'))
-// console.log(evaluate('(define myfun (lambda (def parent) (* def parent)))'))
-// console.log(evaluate('(myfun 2 3)'))
-// console.log(evaluate('(define x 10)'))
-// console.log(evaluate('(define y x)'))
-// console.log(evaluate('y'))
+console.log(evaluate('(define twice (lambda (x) (* 2 x) ) )'))
+console.log(evaluate('(twice 5)'))
+console.log(evaluate('(define fib (lambda (n) (if (< n 2) 1 (+ (fib (- n 1) ) (fib (- n 2) )))))'))
+console.log(evaluate('(fib 4)'))
+console.log(evaluate('(sqrt 49 )'))
+console.log(evaluate('(define triplet (lambda (x y z) (+ x (* y z) ) ) )'))
+console.log(evaluate('(triplet (sqrt 49) 6 7)'))
+console.log(evaluate('(define myfun (lambda (def parent) (* def parent)))'))
+console.log(evaluate('(myfun 2 3)'))
+console.log(evaluate('(define x 10)'))
+console.log(evaluate('(define y x)'))
+console.log(evaluate('y'))
+// console.log(evaluate('(define repeat (lambda (f) (lambda (x) (f (f x)))))'))
+// console.log(evaluate('((repeat twice) 10)'))
